@@ -1,329 +1,856 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>图片混淆工具</title>
-<style>
-:root {
-    --bg: #05050d;
-    --cyan: #05d9e8;
-    --magenta: #ff2a6d;
-    --gray: #19192b;
-    --text: #d1f7ff;
-}
-@media (prefers-color-scheme: light) {
-    :root {--bg:#101020;}
-}
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: "Microsoft YaHei", Consolas, monospace;
-}
-body {
-    background-color: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 20px;
-    position: relative;
-    overflow-x: hidden;
-}
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-image: linear-gradient(rgba(5,217,232,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(5,217,232,0.03) 1px, transparent 1px);
-    background-size: 28px 28px;
-    opacity: 0.5;
-    z-index: -2;
-}
-body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(transparent 0px, transparent 3px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 6px);
-    pointer-events: none;
-    opacity: 0.25;
-    z-index: -1;
-}
-.container {
-    max-width: 700px;
-    margin: 0 auto;
-}
-.cyber-card {
-    background: rgba(10,10,20,0.85);
-    border: 1px solid var(--cyan);
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
-    padding: 26px;
-    margin-bottom: 20px;
-    box-shadow: 0 0 18px rgba(5,217,232,0.2);
-}
-.glitch-title {
-    position: relative;
-    font-size: 22px;
-    letter-spacing: 2px;
-    margin-bottom: 18px;
-    font-weight: bold;
-}
-.glitch-title::before {
-    content: attr(data-text);
-    position: absolute;
-    left: -2px;
-    color: var(--magenta);
-    opacity: 0.7;
-    clip-path: polygon(0 0, 100% 0, 100% 40%, 0 40%);
-    animation: glitch 2.2s infinite alternate-reverse;
-}
-@keyframes glitch {
-    0% {transform: translateX(0)}
-    20% {transform: translateX(-2px)}
-    40% {transform: translateX(2px)}
-    60% {transform: translateX(-1px)}
-    80% {transform: translateX(1px)}
-    100% {transform: translateX(0)}
-}
-.desc {
-    font-size: 13px;
-    opacity: 0.7;
-    margin-bottom: 20px;
-}
-.btn {
-    width: 100%;
-    padding: 14px;
-    margin: 10px 0;
-    background: transparent;
-    border: 2px solid var(--cyan);
-    color: var(--cyan);
-    letter-spacing: 1px;
-    font-size: 14px;
-    cursor: pointer;
-    clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
-    transition: 0.2s ease;
-}
-.btn:hover {
-    background: rgba(5,217,232,0.15);
-    box-shadow: 0 0 22px rgba(5,217,232,0.45);
-    color: #ffffff;
-}
-.btn-magenta {
-    border-color: var(--magenta);
-    color: var(--magenta);
-}
-.btn-magenta:hover {
-    background: rgba(255,42,109,0.15);
-    box-shadow: 0 0 22px rgba(255,42,109,0.45);
-}
-.canvas-box {
-    width: 100%;
-    min-height: 220px;
-    border: 1px dashed rgba(5,217,232,0.4);
-    margin: 18px 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 15px;
-    text-align: center;
-    opacity: 0.8;
-}
-canvas {
-    max-width: 100%;
-    height: auto;
-    display: block;
-}
-.row-flex {
-    display: flex;
-    gap: 12px;
-}
-input[type=file] {
-    display: none;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>图片混淆</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root {
+      --neon-purple: #b44dff;
+      --neon-cyan: #00f0ff;
+      --neon-pink: #ff3b8c;
+      --dark-bg: #0b0d1a;
+      --border-glow: #4b2b8a;
+      --text-cyber: #d0d6f0;
+      --text-muted: #7a82b0;
+      --shadow-glow: 0 0 18px rgba(180, 77, 255, 0.35);
+      --app-radius: 20px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--dark-bg);
+      color: var(--text-cyber);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      background-image: radial-gradient(circle at 20% 30%, #2a1f4a 0%, #0b0d1a 80%);
+      padding: 1rem;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: repeating-linear-gradient(0deg, rgba(0, 255, 255, 0.02) 0px, rgba(180, 77, 255, 0.02) 2px, transparent 3px, transparent 6px);
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .cyber-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 1.2rem;
+      background: rgba(20, 24, 43, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-glow);
+      border-radius: 60px;
+      box-shadow: var(--shadow-glow);
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo-icon { font-size: 1.8rem; filter: drop-shadow(0 0 6px var(--neon-purple)); }
+    .logo-text {
+      font-weight: 700;
+      font-size: 1.3rem;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 2px;
+    }
+
+    .cyber-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      padding: 0.3rem 1rem;
+      border-radius: 30px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .cyber-nav a:hover {
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+    }
+
+    .cyber-nav a.active {
+      background: rgba(180, 77, 255, 0.2);
+      border-color: var(--neon-purple);
+      color: white;
+    }
+
+    .cyber-card {
+      background: rgba(14, 17, 34, 0.8);
+      backdrop-filter: blur(4px);
+      border: 1px solid #3d2a6b;
+      border-radius: var(--app-radius);
+      padding: 1.6rem 1.8rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), var(--shadow-glow);
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cyber-card::after {
+      content: '';
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      background: linear-gradient(45deg, var(--neon-purple), transparent, var(--neon-cyan));
+      z-index: -1;
+      border-radius: var(--app-radius);
+      opacity: 0.2;
+      filter: blur(4px);
+    }
+
+    .tip-bar {
+      background: rgba(180, 77, 255, 0.12);
+      border-left: 4px solid var(--neon-purple);
+      padding: 0.8rem 1.2rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      color: #b8bff5;
+      margin-bottom: 1.4rem;
+      border: 1px solid rgba(180, 77, 255, 0.25);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tip-bar .badge {
+      background: rgba(0, 240, 255, 0.15);
+      padding: 0.2rem 0.8rem;
+      border-radius: 30px;
+      font-size: 0.75rem;
+      color: var(--neon-cyan);
+    }
+
+    .image-zone {
+      position: relative;
+      margin-bottom: 1.2rem;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #3a2b6a;
+      background: #0a0c1a;
+      min-height: 200px;
+    }
+
+    .placeholder-box {
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      border: 2px dashed #4b3b7a;
+      border-radius: 16px;
+      background: #10132a;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.25s;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .placeholder-box:hover {
+      border-color: var(--neon-cyan);
+      background: #171d3b;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+    }
+
+    .placeholder-box svg { filter: drop-shadow(0 0 8px var(--neon-purple)); }
+
+    #imgWrapper {
+      line-height: 0;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #05070f;
+      display: none;
+    }
+
+    #displayImg {
+      width: 100%;
+      max-height: 480px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .controls-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 0.8rem;
+      align-items: center;
+    }
+
+    .cyber-btn {
+      appearance: none;
+      background: rgba(20, 24, 43, 0.7);
+      border: 1px solid #4a3a7a;
+      color: var(--text-cyber);
+      border-radius: 40px;
+      height: 44px;
+      padding: 0 1.2rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.6);
+      flex: 1 0 auto;
+      min-width: 70px;
+    }
+
+    .cyber-btn:hover:not(:disabled) {
+      border-color: var(--neon-cyan);
+      color: white;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+      background: #1f254a;
+      transform: scale(1.02);
+    }
+
+    .cyber-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: grayscale(0.4);
+    }
+
+    .cyber-btn-primary {
+      background: linear-gradient(145deg, #6d2bb1, #3f1a70);
+      border-color: var(--neon-purple);
+      color: white;
+      text-shadow: 0 0 8px rgba(180, 77, 255, 0.5);
+    }
+
+    .cyber-btn-primary:hover:not(:disabled) {
+      background: linear-gradient(145deg, #8a3cd6, #5423a0);
+      border-color: #c47dff;
+      box-shadow: 0 0 28px var(--neon-purple);
+    }
+
+    .cyber-btn-download {
+      background: linear-gradient(145deg, #007a8a, #004c66);
+      border-color: var(--neon-cyan);
+      color: white;
+    }
+
+    .cyber-btn-download:hover:not(:disabled) {
+      background: linear-gradient(145deg, #00a0b0, #006680);
+      box-shadow: 0 0 28px var(--neon-cyan);
+    }
+
+    .cyber-btn-batch {
+      background: linear-gradient(145deg, #8a4b00, #5a3000);
+      border-color: #ff8c00;
+      color: #ffcc80;
+    }
+
+    .cyber-btn-batch:hover:not(:disabled) {
+      background: linear-gradient(145deg, #b06000, #7a4200);
+      box-shadow: 0 0 28px #ff8c00;
+    }
+
+    .file-selector { display: none; }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(11, 13, 26, 0.85);
+      backdrop-filter: blur(2px);
+      gap: 0.8rem;
+      border-radius: 16px;
+      z-index: 10;
+    }
+
+    .loading-overlay.active { display: flex; }
+
+    .loader-ring {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #2a2a5a;
+      border-top: 4px solid var(--neon-cyan);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .format-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #10142a;
+      padding: 0.2rem 0.8rem 0.2rem 1.2rem;
+      border-radius: 40px;
+      border: 1px solid #3a2b6a;
+      flex-wrap: wrap;
+    }
+
+    .format-selector label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .format-selector input[type="radio"],
+    .format-selector input[type="checkbox"] {
+      accent-color: var(--neon-purple);
+      width: 16px;
+      height: 16px;
+    }
+
+    .status-bar {
+      margin-top: 1rem;
+      padding: 0.8rem 1.2rem;
+      background: rgba(20, 24, 43, 0.5);
+      border-radius: 12px;
+      border: 1px solid #2a2350;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .status-bar .count {
+      color: var(--neon-cyan);
+      font-weight: 600;
+    }
+
+    .file-list {
+      margin-top: 0.8rem;
+      max-height: 120px;
+      overflow-y: auto;
+      padding: 0.4rem 0.6rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      border: 1px solid #2a2350;
+      display: none;
+    }
+
+    .file-list::-webkit-scrollbar { width: 4px; }
+    .file-list::-webkit-scrollbar-track { background: transparent; }
+    .file-list::-webkit-scrollbar-thumb { background: var(--neon-purple); border-radius: 10px; }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      cursor: pointer;
+    }
+
+    .file-item:hover { background: rgba(180, 77, 255, 0.1); }
+
+    .file-item .name { color: var(--text-cyber); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-item .status { font-size: 0.7rem; padding: 0.1rem 0.6rem; border-radius: 20px; }
+    .file-item .status.done { background: rgba(0, 240, 255, 0.15); color: var(--neon-cyan); }
+    .file-item .status.pending { background: rgba(180, 77, 255, 0.15); color: var(--neon-purple); }
+
+    .footer {
+      margin-top: 2rem;
+      padding: 1.5rem 0;
+      border-top: 1px solid #2a2350;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .footer a { color: var(--neon-cyan); text-decoration: none; }
+    .footer a:hover { text-shadow: 0 0 10px var(--neon-cyan); }
+
+    @media (max-width: 640px) {
+      .cyber-header { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+      .logo-area { justify-content: center; }
+      .controls-grid { flex-direction: column; }
+      .cyber-btn { width: 100%; flex: unset; }
+      .format-selector { justify-content: center; }
+      .tip-bar { flex-direction: column; text-align: center; }
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-    <div class="cyber-card">
-        <div class="glitch-title" data-text="图片混淆工具">图片混淆工具</div>
-        <div class="desc">本地离线处理 · 图片不上传服务器 · 支持多层混淆与逐层还原</div>
+  <div class="container">
+    <header class="cyber-header">
+      <div class="logo-area">
+        <span class="logo-icon">⭐</span>
+        <span class="logo-text">图片混淆</span>
+        <span style="font-size:0.7rem; background:#4b2b8a; padding:0.1rem 0.6rem; border-radius:30px; color:#b88aff;">v1.0</span>
+      </div>
+      <nav class="cyber-nav">
+        <a href="#" class="active">✨ 工具</a>
+        <a href="#" id="qqGroupLink">💬 QQ群</a>
+      </nav>
+    </header>
 
-        <input id="fileLoader" type="file" accept="image/*">
-        <button class="btn" onclick="document.getElementById('fileLoader').click()">选择图片</button>
+    <main class="cyber-card">
+      <div class="tip-bar">
+        <span>⚡ Gilbert Curve 像素置乱 · 支持批量处理</span>
+        <span class="badge">Uint32 加速 · 本地处理</span>
+      </div>
 
-        <div class="canvas-box" id="canvasWrap">预览区域</div>
-        <canvas id="mainCanvas"></canvas>
-
-        <div class="row-flex">
-            <button class="btn" id="obscureBtn">混淆（可多次叠加）</button>
-            <button class="btn btn-magenta" id="restoreBtn">解混淆（逐层还原）</button>
+      <div class="image-zone" id="imageZone">
+        <div class="placeholder-box" id="placeholderBox">
+          <svg width="48" height="48" viewBox="0 0 1110 1024" fill="currentColor">
+            <path d="M557 533V826h43V533h290v-43H600V219h-43v271H267v43z"></path>
+          </svg>
+          <p>点击上传 · 支持批量</p>
+          <span style="font-size:0.7rem; opacity:0.5;">PNG / JPEG / WebP / BMP / GIF</span>
         </div>
-        <button class="btn btn-magenta" id="downloadImgBtn">下载图片</button>
-    </div>
-</div>
+        <div id="imgWrapper">
+          <img id="displayImg" alt="预览">
+        </div>
+        <div class="loading-overlay" id="loadingOverlay">
+          <div class="loader-ring"></div>
+          <p style="color: var(--neon-cyan);">处理中 ...</p>
+        </div>
+      </div>
 
-<script>
-const canvas = document.getElementById('mainCanvas');
-const ctx = canvas.getContext('2d');
-const fileInput = document.getElementById('fileLoader');
-const wrap = document.getElementById('canvasWrap');
-const obscureBtn = document.getElementById('obscureBtn');
-const restoreBtn = document.getElementById('restoreBtn');
-const downloadBtn = document.getElementById('downloadImgBtn');
+      <div class="file-list" id="fileList"></div>
 
-let originalImg = null;
-let width = 0;
-let height = 0;
+      <div class="controls-grid">
+        <input type="file" accept="image/*" id="fileInput" class="file-selector" multiple>
+        <button class="cyber-btn" id="uploadBtn">📤 上传</button>
+        <button class="cyber-btn cyber-btn-primary" id="encBtn">🌀 混淆</button>
+        <button class="cyber-btn" id="decBtn">🔓 解混淆</button>
+        <button class="cyber-btn" id="resetBtn">↺ 还原</button>
+        <button class="cyber-btn cyber-btn-batch" id="batchBtn">📦 批量处理</button>
+        <button class="cyber-btn cyber-btn-download" id="downloadBtn" style="display:none;">⬇ 下载</button>
 
-// 生成吉尔伯特曲线坐标序列
-function gilbertCurve(n) {
-    let points = [];
-    function d(x, y, size, direction) {
-        if (size === 1) {
-            points.push([x, y]);
+        <div class="format-selector">
+          <label><input type="radio" name="format" value="png" checked> PNG</label>
+          <label><input type="radio" name="format" value="jpeg"> JPEG</label>
+          <label><input type="checkbox" id="highQuality" checked> 高清</label>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <span>📁 <span class="count" id="fileCount">0</span> 张图片</span>
+        <span id="statusText">就绪</span>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>⚡  图片混淆  |  <a href="#" id="footerQQLink">💬 QQ交流群</a></p>
+      <p style="margin-top:6px;">基于 Gilbert Curve · 所有处理在本地完成 · 支持批量导出 ZIP</p>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      "use strict";
+
+      // ==================== DOM 引用 ====================
+      const fileInput = document.getElementById('fileInput');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const encBtn = document.getElementById('encBtn');
+      const decBtn = document.getElementById('decBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const batchBtn = document.getElementById('batchBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const placeholderBox = document.getElementById('placeholderBox');
+      const imgWrapper = document.getElementById('imgWrapper');
+      const displayImg = document.getElementById('displayImg');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const fileList = document.getElementById('fileList');
+      const fileCount = document.getElementById('fileCount');
+      const statusText = document.getElementById('statusText');
+      const highQualityCheck = document.getElementById('highQuality');
+
+      // ==================== 状态管理 ====================
+      let files = [];
+      let currentIndex = -1;
+      let isProcessing = false;
+
+      // ==================== Gilbert Curve 生成器 ====================
+      class Obfuscator {
+        constructor(w, h) {
+          this.w = w;
+          this.h = h;
+          this.total = w * h;
+          this.curveX = new Int32Array(this.total);
+          this.curveY = new Int32Array(this.total);
+          this.currentIndex = 0;
+        }
+
+        generate2d(x, y, ax, ay, bx, by) {
+          const w = Math.abs(ax + ay), h = Math.abs(bx + by);
+          const dax = Math.sign(ax), day = Math.sign(ay);
+          const dbx = Math.sign(bx), dby = Math.sign(by);
+
+          if (h === 1) {
+            for (let i = 0; i < w; i++) {
+              this.curveX[this.currentIndex] = x;
+              this.curveY[this.currentIndex] = y;
+              this.currentIndex++;
+              x += dax; y += day;
+            }
             return;
+          }
+          if (w === 1) {
+            for (let i = 0; i < h; i++) {
+              this.curveX[this.currentIndex] = x;
+              this.curveY[this.currentIndex] = y;
+              this.currentIndex++;
+              x += dbx; y += dby;
+            }
+            return;
+          }
+
+          let ax2 = Math.trunc(ax / 2), ay2 = Math.trunc(ay / 2);
+          let bx2 = Math.trunc(bx / 2), by2 = Math.trunc(by / 2);
+
+          if (2 * w > 3 * h) {
+            if ((Math.abs(ax2 + ay2) % 2 !== 0) && (w > 2)) { ax2 += dax; ay2 += day; }
+            this.generate2d(x, y, ax2, ay2, bx, by);
+            this.generate2d(x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by);
+          } else {
+            if ((Math.abs(bx2 + by2) % 2 !== 0) && (h > 2)) { bx2 += dbx; by2 += dby; }
+            this.generate2d(x, y, bx2, by2, ax2, ay2);
+            this.generate2d(x + bx2, y + by2, ax, ay, bx - bx2, by - by2);
+            this.generate2d(x + (ax - dax) + (bx2 - dbx), y + (ay - day) + (by2 - dby), -bx2, -by2, -(ax - ax2), -(ay - ay2));
+          }
         }
-        const half = size / 2;
-        switch (direction) {
-            case 0:
-                d(x, y, half, 1);
-                d(x, y + half, half, 0);
-                d(x + half, y + half, half, 0);
-                d(x + half, y, half, 3);
-                break;
-            case 1:
-                d(x, y, half, 0);
-                d(x + half, y, half, 1);
-                d(x + half, y + half, half, 1);
-                d(x, y + half, half, 2);
-                break;
-            case 2:
-                d(x + half, y + half, half, 3);
-                d(x + half, y, half, 2);
-                d(x, y, half, 2);
-                d(x, y + half, half, 1);
-                break;
-            case 3:
-                d(x + half, y, half, 2);
-                d(x, y, half, 3);
-                d(x, y + half, half, 3);
-                d(x + half, y + half, half, 0);
-                break;
+      }
+
+      // ==================== 核心处理函数 ====================
+      async function processImageBlob(blob, isEncrypt) {
+        const img = await createImageBitmap(blob);
+        const w = img.width, h = img.height;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        img.close();
+
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const pixels = new Uint32Array(imageData.data.buffer);
+        const res = new Uint32Array(pixels.length);
+
+        const obs = new Obfuscator(w, h);
+        if (w >= h) obs.generate2d(0, 0, w, 0, 0, h);
+        else obs.generate2d(0, 0, 0, h, w, 0);
+
+        const offset = Math.round(((Math.sqrt(5) - 1) / 2) * obs.total);
+
+        for (let i = 0; i < obs.total; i++) {
+          const targetIdx = (i + offset) % obs.total;
+          const x1 = obs.curveX[i], y1 = obs.curveY[i];
+          const x2 = obs.curveX[targetIdx], y2 = obs.curveY[targetIdx];
+          if (isEncrypt) {
+            res[y2 * w + x2] = pixels[y1 * w + x1];
+          } else {
+            res[y1 * w + x1] = pixels[y2 * w + x2];
+          }
         }
-    }
-    d(0, 0, n, 0);
-    return points;
-}
 
-// 对齐尺寸到2的幂次
-function getPowerTwo(val) {
-    let v = 1;
-    while (v < val) v <<= 1;
-    return v;
-}
+        imageData.data.set(new Uint8ClampedArray(res.buffer));
+        ctx.putImageData(imageData, 0, 0);
 
-// 正向混淆（可重复叠加）
-function encodeOnce() {
-    if (!originalImg) return;
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imgData.data.slice();
-    const size = getPowerTwo(Math.max(canvas.width, canvas.height));
-    const curve = gilbertCurve(size);
-    const step = Math.floor(curve.length * ((Math.sqrt(5)-1)/2));
+        const isPng = document.querySelector('input[name="format"]:checked')?.value === 'png';
+        const quality = highQualityCheck.checked ? 0.95 : 0.85;
+        const mime = isPng ? 'image/png' : 'image/jpeg';
 
-    for(let i=0;i<curve.length;i++){
-        const srcIdx = i;
-        const dstIdx = (i + step) % curve.length;
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('导出失败'));
+          }, mime, quality);
+        });
+      }
 
-        let x1 = curve[srcIdx][0];
-        let y1 = curve[srcIdx][1];
-        let x2 = curve[dstIdx][0];
-        let y2 = curve[dstIdx][1];
+      // ==================== 显示文件 ====================
+      function showFile(index) {
+        if (index < 0 || index >= files.length) return;
+        currentIndex = index;
+        const fileData = files[index];
+        const blob = fileData.processed || fileData.original;
+        if (!blob) return;
 
-        if(x1 >= canvas.width || y1 >= canvas.height) continue;
-        if(x2 >= canvas.width || y2 >= canvas.height) continue;
+        if (displayImg.src && displayImg.src.startsWith('blob:')) {
+          URL.revokeObjectURL(displayImg.src);
+        }
+        displayImg.src = URL.createObjectURL(blob);
+        imgWrapper.style.display = 'block';
+        placeholderBox.style.display = 'none';
+        downloadBtn.style.display = 'inline-flex';
+        updateStatus();
+        renderFileList();
+      }
 
-        const pos1 = (y1 * canvas.width + x1) * 4;
-        const pos2 = (y2 * canvas.width + x2) * 4;
+      function updateStatus() {
+        fileCount.textContent = files.length;
+        if (files.length === 0) {
+          statusText.textContent = '就绪';
+          downloadBtn.style.display = 'none';
+          imgWrapper.style.display = 'none';
+          placeholderBox.style.display = 'flex';
+          fileList.style.display = 'none';
+        } else {
+          const processed = files.filter(f => f.processed).length;
+          statusText.textContent = `已处理 ${processed}/${files.length}`;
+        }
+      }
 
-        imgData.data[pos2] = data[pos1];
-        imgData.data[pos2+1] = data[pos1+1];
-        imgData.data[pos2+2] = data[pos1+2];
-        imgData.data[pos2+3] = data[pos1+3];
-    }
-    ctx.putImageData(imgData,0,0);
-}
+      function renderFileList() {
+        if (files.length === 0) {
+          fileList.style.display = 'none';
+          return;
+        }
+        fileList.style.display = 'block';
+        fileList.innerHTML = files.map((f, i) => `
+          <div class="file-item" onclick="window._selectFile(${i})">
+            <span class="name">${f.original.name || '未命名'}</span>
+            <span class="status ${f.processed ? 'done' : 'pending'}">${f.processed ? '✓ 已处理' : '待处理'}</span>
+          </div>
+        `).join('');
+      }
 
-// 反向解密（逐层还原）
-function decodeOnce() {
-    if (!originalImg) return;
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imgData.data.slice();
-    const size = getPowerTwo(Math.max(canvas.width, canvas.height));
-    const curve = gilbertCurve(size);
-    const step = Math.floor(curve.length * ((Math.sqrt(5)-1)/2));
+      window._selectFile = function(index) {
+        if (index >= 0 && index < files.length) showFile(index);
+      };
 
-    for(let i=0;i<curve.length;i++){
-        const dstIdx = i;
-        const srcIdx = (i + step) % curve.length;
+      // ==================== 添加文件 ====================
+      async function addFiles(fileList) {
+        for (const file of fileList) {
+          if (!file.type.startsWith('image/')) continue;
+          let blob = file;
+          // 大图压缩
+          if (file.size > 5 * 1024 * 1024) {
+            try {
+              const img = await createImageBitmap(file);
+              const w = img.width, h = img.height;
+              const scale = Math.min(2000 / w, 2000 / h, 1);
+              if (scale < 1) {
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(w * scale);
+                canvas.height = Math.round(h * scale);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                img.close();
+                blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+              } else {
+                img.close();
+              }
+            } catch (e) {
+              console.warn('压缩失败:', e);
+            }
+          }
+          files.push({ original: blob, processed: null });
+        }
+        if (files.length > 0) {
+          showFile(files.length - 1);
+        }
+        updateStatus();
+        renderFileList();
+      }
 
-        let x1 = curve[srcIdx][0];
-        let y1 = curve[srcIdx][1];
-        let x2 = curve[dstIdx][0];
-        let y2 = curve[dstIdx][1];
+      // ==================== 处理单张 ====================
+      async function processCurrent(isEncrypt) {
+        if (currentIndex < 0 || currentIndex >= files.length) {
+          alert('请先上传图片');
+          return;
+        }
+        if (isProcessing) return;
 
-        if(x1 >= canvas.width || y1 >= canvas.height) continue;
-        if(x2 >= canvas.width || y2 >= canvas.height) continue;
+        const fileData = files[currentIndex];
+        const source = fileData.processed || fileData.original;
+        if (!source) return;
 
-        const pos1 = (y1 * canvas.width + x1) * 4;
-        const pos2 = (y2 * canvas.width + x2) * 4;
+        isProcessing = true;
+        loadingOverlay.classList.add('active');
+        statusText.textContent = '处理中...';
 
-        imgData.data[pos2] = data[pos1];
-        imgData.data[pos2+1] = data[pos1+1];
-        imgData.data[pos2+2] = data[pos1+2];
-        imgData.data[pos2+3] = data[pos1+3];
-    }
-    ctx.putImageData(imgData,0,0);
-}
+        try {
+          const result = await processImageBlob(source, isEncrypt);
+          fileData.processed = result;
+          showFile(currentIndex);
+          statusText.textContent = '处理完成';
+        } catch (err) {
+          alert('处理失败：' + err.message);
+          statusText.textContent = '错误';
+        } finally {
+          isProcessing = false;
+          loadingOverlay.classList.remove('active');
+          updateStatus();
+          renderFileList();
+        }
+      }
 
-fileInput.onchange = function (e) {
-    if (!e.target.files || !e.target.files[0]) return;
-    const reader = new FileReader();
-    reader.onload = function (event) {
-        const img = new Image();
-        img.onload = function () {
-            originalImg = img;
-            width = img.naturalWidth;
-            height = img.naturalHeight;
-            canvas.width = width;
-            canvas.height = height;
-            ctx.drawImage(img, 0, 0);
-            wrap.style.display = "none";
-        };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(e.target.files[0]);
-};
+      // ==================== 批量处理 ====================
+      async function batchProcess(isEncrypt) {
+        if (files.length === 0) {
+          alert('请先上传图片');
+          return;
+        }
+        if (isProcessing) return;
 
-obscureBtn.onclick = encodeOnce;
-restoreBtn.onclick = decodeOnce;
+        const toProcess = files.filter(f => !f.processed);
+        if (toProcess.length === 0) {
+          alert('所有图片已处理完成');
+          return;
+        }
 
-downloadBtn.onclick = function () {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const h = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    const fileName = `处理结果_${y}${m}${d}_${h}${min}${s}.png`;
+        isProcessing = true;
+        loadingOverlay.classList.add('active');
+        statusText.textContent = `批量处理中 0/${toProcess.length}`;
 
-    const link = document.createElement('a');
-    link.download = fileName;
-    link.href = canvas.toDataURL("image/png");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-</script>
+        try {
+          for (let i = 0; i < toProcess.length; i++) {
+            const f = toProcess[i];
+            const source = f.processed || f.original;
+            if (!source) continue;
+            const result = await processImageBlob(source, isEncrypt);
+            f.processed = result;
+            statusText.textContent = `批量处理中 ${i+1}/${toProcess.length}`;
+            if (i % 3 === 0 || i === toProcess.length - 1) {
+              renderFileList();
+              updateStatus();
+            }
+          }
+          if (files.length > 0) showFile(files.length - 1);
+          statusText.textContent = `批量完成！${toProcess.length} 张`;
+        } catch (err) {
+          alert('批量处理失败：' + err.message);
+        } finally {
+          isProcessing = false;
+          loadingOverlay.classList.remove('active');
+          updateStatus();
+          renderFileList();
+        }
+      }
+
+      // ==================== 下载 ====================
+      function downloadCurrent() {
+        if (currentIndex < 0 || currentIndex >= files.length) return;
+        const f = files[currentIndex];
+        const blob = f.processed || f.original;
+        if (!blob) return;
+
+        const ext = document.querySelector('input[name="format"]:checked')?.value === 'png' ? 'png' : 'jpeg';
+        const name = f.original.name ? f.original.name.replace(/\.[^.]+$/, '') : 'image';
+        const a = document.createElement('a');
+        a.download = `${name}_混淆.${ext}`;
+        a.href = URL.createObjectURL(blob);
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+
+      async function downloadBatch() {
+        if (files.length === 0) { alert('没有图片可下载'); return; }
+        if (isProcessing) return;
+
+        const zip = new JSZip();
+        let count = 0;
+
+        for (const f of files) {
+          const blob = f.processed || f.original;
+          if (!blob) continue;
+          const ext = document.querySelector('input[name="format"]:checked')?.value === 'png' ? 'png' : 'jpeg';
+          const name = f.original.name ? f.original.name.replace(/\.[^.]+$/, '') : `image_${count}`;
+          zip.file(`${name}.${ext}`, blob);
+          count++;
+        }
+
+        if (count === 0) { alert('没有可下载的图片'); return; }
+
+        statusText.textContent = '打包中...';
+        try {
+          const content = await zip.generateAsync({ type: 'blob' });
+          const a = document.createElement('a');
+          a.download = `混淆结果_${Date.now()}.zip`;
+          a.href = URL.createObjectURL(content);
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+          statusText.textContent = `已打包 ${count} 张图片`;
+        } catch (err) {
+          alert('打包失败：' + err.message);
+        }
+      }
+
+      // ==================== 重置 ====================
+      function resetCurrent() {
+        if (currentIndex < 0 || currentIndex >= files.length) return;
+        files[currentIndex].processed = null;
+        showFile(currentIndex);
+        updateStatus();
+        renderFileList();
+        statusText.textContent = '已还原';
+      }
+
+      // ==================== 事件绑定 ====================
+      uploadBtn.addEventListener('click', () => fileInput.click());
+      placeholderBox.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', (e) => {
+        if (fileInput.files && fileInput.files.length > 0) {
+          addFiles(fileInput.files);
+        }
+        fileInput.value = '';
+      });
+
+      encBtn.addEventListener('click', () => processCurrent(true));
+      decBtn.addEventListener('click', () => processCurrent(false));
+      resetBtn.addEventListener('click', resetCurrent);
+      batchBtn.addEventListener('click', () => batchProcess(true));
+      downloadBtn.addEventListener('click', downloadCurrent);
+
+      // 添加批量下载功能
+      const batchDownloadBtn = document.createElement('button');
+      batchDownloadBtn.className = 'cyber-btn cyber-btn-download';
+      batchDownloadBtn.innerHTML = '📦 批量下载 ZIP';
+      batchDownloadBtn.id = 'batchDownloadBtn';
+      // 插入到下载按钮后面
+      downloadBtn.parentNode.insertBefore(batchDownloadBtn, downloadBtn.nextSibling);
+      batchDownloadBtn.addEventListener('click', downloadBatch);
+
+      // QQ群链接 - 替换为指定链接
+      const qqGroupLink = document.getElementById('qqGroupLink');
+      const footerQQLink = document.getElementById('footerQQLink');
+      const QQ_GROUP_URL = 'https://qm.qq.com/q/EZmVQ4ZxHW';
+      if (qqGroupLink) { qqGroupLink.href = QQ_GROUP_URL; qqGroupLink.target = '_blank'; }
+      if (footerQQLink) { footerQQLink.href = QQ_GROUP_URL; footerQQLink.target = '_blank'; }
+
+      console.log('⭐ 图片混淆已启动 | Gilbert Curve + Uint32Array 加速');
+    })();
+  </script>
 </body>
 </html>
