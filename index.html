@@ -145,7 +145,7 @@ input[type=file] {
 <div class="container">
     <div class="cyber-card">
         <div class="glitch-title" data-text="图片混淆工具">图片混淆工具</div>
-        <div class="desc">本地离线处理 · 图片不上传服务器 · 支持混淆与还原</div>
+        <div class="desc">本地离线处理 · 图片不上传服务器 · 支持多层混淆与逐层还原</div>
 
         <input id="fileLoader" type="file" accept="image/*">
         <button class="btn" onclick="document.getElementById('fileLoader').click()">选择图片</button>
@@ -154,8 +154,8 @@ input[type=file] {
         <canvas id="mainCanvas"></canvas>
 
         <div class="row-flex">
-            <button class="btn" id="obscureBtn">混淆</button>
-            <button class="btn btn-magenta" id="restoreBtn">解混淆</button>
+            <button class="btn" id="obscureBtn">混淆（可多次叠加）</button>
+            <button class="btn btn-magenta" id="restoreBtn">解混淆（逐层还原）</button>
         </div>
         <button class="btn btn-magenta" id="downloadImgBtn">下载图片</button>
     </div>
@@ -171,118 +171,143 @@ const restoreBtn = document.getElementById('restoreBtn');
 const downloadBtn = document.getElementById('downloadImgBtn');
 
 let originalImg = null;
-let processedImageData = null;
+let width = 0;
+let height = 0;
 
-// Gilbert 曲线核心算法
-function z(t, n) {
-    const e = [];
-    return t >= n ? p(0, 0, t, 0, 0, n, e) : p(0, 0, 0, n, t, 0, e), e;
+// 生成吉尔伯特曲线坐标序列
+function gilbertCurve(n) {
+    let points = [];
+    function d(x, y, size, direction) {
+        if (size === 1) {
+            points.push([x, y]);
+            return;
+        }
+        const half = size / 2;
+        switch (direction) {
+            case 0:
+                d(x, y, half, 1);
+                d(x, y + half, half, 0);
+                d(x + half, y + half, half, 0);
+                d(x + half, y, half, 3);
+                break;
+            case 1:
+                d(x, y, half, 0);
+                d(x + half, y, half, 1);
+                d(x + half, y + half, half, 1);
+                d(x, y + half, half, 2);
+                break;
+            case 2:
+                d(x + half, y + half, half, 3);
+                d(x + half, y, half, 2);
+                d(x, y, half, 2);
+                d(x, y + half, half, 1);
+                break;
+            case 3:
+                d(x + half, y, half, 2);
+                d(x, y, half, 3);
+                d(x, y + half, half, 3);
+                d(x + half, y + half, half, 0);
+                break;
+        }
+    }
+    d(0, 0, n, 0);
+    return points;
 }
 
-function p(t, n, e, o, c, a, r) {
-    const m = Math.abs(e + o), l = Math.abs(c + a), u = Math.sign(e), d = Math.sign(o), L = Math.sign(c), s = Math.sign(a);
-    if (l === 1) {
-        for (let M = 0; M < m; M++) {
-            r.push([t, n]), t += u, n += d;
-        }
-        return;
-    }
-    if (m === 1) {
-        for (let M = 0; M < l; M++) {
-            r.push([t, n]), t += L, n += s;
-        }
-        return;
-    }
-    let h = Math.floor(e / 2), g = Math.floor(o / 2), i = Math.floor(c / 2), f = Math.floor(a / 2);
-    const S = Math.abs(h + g), _ = Math.abs(i + f);
-    2 * m > 3 * l ? (S % 2 && m > 2 && (h += u, g += d), p(t, n, h, g, c, a, r), p(t + h, n + g, e - h, o - g, c, a, r)) : (_ % 2 && l > 2 && (i += L, f += s), p(t, n, i, f, h, g, r), p(t + i, n + f, e, o, c - i, a - f, r), p(t + (e - u) + (i - L), n + (o - d) + (f - s), -i, -f, -(e - h), -(o - g), r));
+// 对齐尺寸到2的幂次
+function getPowerTwo(val) {
+    let v = 1;
+    while (v < val) v <<= 1;
+    return v;
 }
 
-function gilbertProcess(type) {
+// 正向混淆（可重复叠加）
+function encodeOnce() {
     if (!originalImg) return;
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data.slice();
+    const size = getPowerTwo(Math.max(canvas.width, canvas.height));
+    const curve = gilbertCurve(size);
+    const step = Math.floor(curve.length * ((Math.sqrt(5)-1)/2));
 
-    const img = originalImg;
-    const maxPixels = 8000000;
-    const maxSide = 4000;
+    for(let i=0;i<curve.length;i++){
+        const srcIdx = i;
+        const dstIdx = (i + step) % curve.length;
 
-    let width = img.naturalWidth || img.width;
-    let height = img.naturalHeight || img.height;
-    let scale = 1;
+        let x1 = curve[srcIdx][0];
+        let y1 = curve[srcIdx][1];
+        let x2 = curve[dstIdx][0];
+        let y2 = curve[dstIdx][1];
 
-    if (width * height > maxPixels) {
-        scale = Math.sqrt(maxPixels / (width * height));
+        if(x1 >= canvas.width || y1 >= canvas.height) continue;
+        if(x2 >= canvas.width || y2 >= canvas.height) continue;
+
+        const pos1 = (y1 * canvas.width + x1) * 4;
+        const pos2 = (y2 * canvas.width + x2) * 4;
+
+        imgData.data[pos2] = data[pos1];
+        imgData.data[pos2+1] = data[pos1+1];
+        imgData.data[pos2+2] = data[pos1+2];
+        imgData.data[pos2+3] = data[pos1+3];
     }
-    if (width > maxSide) scale = Math.min(scale, maxSide / width);
-    if (height > maxSide) scale = Math.min(scale, maxSide / height);
+    ctx.putImageData(imgData,0,0);
+}
 
-    if (scale < 1) {
-        width = Math.max(1, Math.round(width * scale));
-        height = Math.max(1, Math.round(height * scale));
+// 反向解密（逐层还原）
+function decodeOnce() {
+    if (!originalImg) return;
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data.slice();
+    const size = getPowerTwo(Math.max(canvas.width, canvas.height));
+    const curve = gilbertCurve(size);
+    const step = Math.floor(curve.length * ((Math.sqrt(5)-1)/2));
+
+    for(let i=0;i<curve.length;i++){
+        const dstIdx = i;
+        const srcIdx = (i + step) % curve.length;
+
+        let x1 = curve[srcIdx][0];
+        let y1 = curve[srcIdx][1];
+        let x2 = curve[dstIdx][0];
+        let y2 = curve[dstIdx][1];
+
+        if(x1 >= canvas.width || y1 >= canvas.height) continue;
+        if(x2 >= canvas.width || y2 >= canvas.height) continue;
+
+        const pos1 = (y1 * canvas.width + x1) * 4;
+        const pos2 = (y2 * canvas.width + x2) * 4;
+
+        imgData.data[pos2] = data[pos1];
+        imgData.data[pos2+1] = data[pos1+1];
+        imgData.data[pos2+2] = data[pos1+2];
+        imgData.data[pos2+3] = data[pos1+3];
     }
-
-    canvas.width = width;
-    canvas.height = height;
-    ctx.drawImage(img, 0, 0, width, height);
-
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    const order = z(width, height);
-    const total = order.length;
-    const step = Math.round((Math.sqrt(5) - 1) / 2 * total);
-
-    const temp = new Uint8ClampedArray(data);
-
-    for (let i = 0; i < total; i++) {
-        const src = type === 'enc' ? i : (i + step) % total;
-        const dst = type === 'enc' ? (i + step) % total : i;
-
-        const srcPos = order[src];
-        const dstPos = order[dst];
-
-        const srcIdx = 4 * (srcPos[0] + srcPos[1] * width);
-        const dstIdx = 4 * (dstPos[0] + dstPos[1] * width);
-
-        data[dstIdx] = temp[srcIdx];
-        data[dstIdx + 1] = temp[srcIdx + 1];
-        data[dstIdx + 2] = temp[srcIdx + 2];
-        data[dstIdx + 3] = temp[srcIdx + 3];
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-    processedImageData = imageData;
+    ctx.putImageData(imgData,0,0);
 }
 
 fileInput.onchange = function (e) {
     if (!e.target.files || !e.target.files[0]) return;
-
     const reader = new FileReader();
     reader.onload = function (event) {
         const img = new Image();
         img.onload = function () {
             originalImg = img;
-            wrap.style.display = "none";
-
-            canvas.width = img.naturalWidth || img.width;
-            canvas.height = img.naturalHeight || img.height;
+            width = img.naturalWidth;
+            height = img.naturalHeight;
+            canvas.width = width;
+            canvas.height = height;
             ctx.drawImage(img, 0, 0);
-            processedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            wrap.style.display = "none";
         };
         img.src = event.target.result;
     };
     reader.readAsDataURL(e.target.files[0]);
 };
 
-obscureBtn.onclick = function () {
-    gilbertProcess('enc');
-};
-
-restoreBtn.onclick = function () {
-    gilbertProcess('dec');
-};
+obscureBtn.onclick = encodeOnce;
+restoreBtn.onclick = decodeOnce;
 
 downloadBtn.onclick = function () {
-    if (!processedImageData) return;
-
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -290,7 +315,6 @@ downloadBtn.onclick = function () {
     const h = String(now.getHours()).padStart(2, '0');
     const min = String(now.getMinutes()).padStart(2, '0');
     const s = String(now.getSeconds()).padStart(2, '0');
-
     const fileName = `处理结果_${y}${m}${d}_${h}${min}${s}.png`;
 
     const link = document.createElement('a');
